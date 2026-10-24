@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  MSI installer for the Logitech G25/G27/DFGT force feedback driver. Build with package.ps1 (WiX 5 from dotnet-tools.json):
+    wix build installer\G25FF.wxs -arch x64 -ext WixToolset.UI.wixext -d Version=1.0.0 -d BinDir=bin -o G25FF.msi
+  The DLLs register themselves through custom actions in the 64-bit DLL (src\msi.cpp), the same code regsvr32 uses.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="Logitech G25/G27/DFGT Force Feedback Driver" Manufacturer="WallyCZ" Version="$(Version)"
+           UpgradeCode="{01430161-9D56-469D-8F3F-0B3D0DE45A2F}" Scope="perMachine" Compressed="yes">
+    <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/WallyCZ/logitech-g25-g27-ff" />
+    <Property Id="ARPNOMODIFY" Value="1" />
+    <!-- Choice in the setup dialog; also the default for a silent installation -->
+    <Property Id="REMOVELOGITECHDRIVER" Value="1" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="G25FF">
+        <Directory Id="X64FOLDER" Name="x64">
+          <Component Id="DriverX64" Bitness="always64">
+            <File Id="G25FF64" Source="$(BinDir)\x64\G25FF.dll" KeyPath="yes" />
+          </Component>
+        </Directory>
+        <Directory Id="X86FOLDER" Name="x86">
+          <Component Id="DriverX86" Bitness="always32">
+            <File Id="G25FF32" Source="$(BinDir)\x86\G25FF.dll" KeyPath="yes" />
+          </Component>
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+
+    <Feature Id="Driver">
+      <ComponentRef Id="DriverX64" />
+      <ComponentRef Id="DriverX86" />
+    </Feature>
+
+    <!-- Detection and stopping the agent run from a copy of the DLL in the package -->
+    <Binary Id="SetupDll" SourceFile="$(BinDir)\x64\G25FF.dll" />
+    <CustomAction Id="G25DetectDriver" BinaryRef="SetupDll" DllEntry="MsiDetectLogitechDriver" Execute="immediate" Return="ignore" />
+    <CustomAction Id="G25StopAgents" BinaryRef="SetupDll" DllEntry="MsiStopAgents" Execute="immediate" Return="ignore" />
+
+    <!-- Registration runs from the installed 64-bit DLL; deferred actions get their input in CustomActionData -->
+    <SetProperty Id="G25RegisterMachine" Value="[REMOVELOGITECHDRIVER]" Before="G25RegisterMachine" Sequence="execute" />
+    <CustomAction Id="G25RegisterMachine" FileRef="G25FF64" DllEntry="MsiRegisterMachine" Execute="deferred" Impersonate="no" Return="check" />
+    <CustomAction Id="G25RollbackRegisterMachine" FileRef="G25FF64" DllEntry="MsiUnregisterMachine" Execute="rollback" Impersonate="no" Return="ignore" />
+    <CustomAction Id="G25RegisterUser" FileRef="G25FF64" DllEntry="MsiRegisterUser" Execute="deferred" Impersonate="yes" Return="ignore" />
+    <CustomAction Id="G25RollbackRegisterUser" FileRef="G25FF64" DllEntry="MsiUnregisterUser" Execute="rollback" Impersonate="yes" Return="ignore" />
+    <CustomAction Id="G25UnregisterUser" FileRef="G25FF64" DllEntry="MsiUnregisterUser" Execute="deferred" Impersonate="yes" Return="ignore" />
+    <CustomAction Id="G25UnregisterMachine" FileRef="G25FF64" DllEntry="MsiUnregisterMachine" Execute="deferred" Impersonate="no" Return="ignore" />
+
+    <InstallUISequence>
+      <Custom Action="G25DetectDriver" Before="CostInitialize" Condition="NOT Installed" />
+    </InstallUISequence>
+    <InstallExecuteSequence>
+      <Custom Action="G25StopAgents" Before="InstallValidate" />
+      <Custom Action="G25UnregisterUser" Before="RemoveFiles" Condition="REMOVE=&quot;ALL&quot;" />
+      <Custom Action="G25UnregisterMachine" After="G25UnregisterUser" Condition="REMOVE=&quot;ALL&quot;" />
+      <Custom Action="G25RollbackRegisterMachine" After="InstallFiles" Condition="NOT REMOVE=&quot;ALL&quot;" />
+      <Custom Action="G25RegisterMachine" After="G25RollbackRegisterMachine" Condition="NOT REMOVE=&quot;ALL&quot;" />
+      <Custom Action="G25RollbackRegisterUser" After="G25RegisterMachine" Condition="NOT REMOVE=&quot;ALL&quot;" />
+      <Custom Action="G25RegisterUser" After="G25RollbackRegisterUser" Condition="NOT REMOVE=&quot;ALL&quot;" />
+    </InstallExecuteSequence>
+
+    <UI Id="SetupUI">
+      <TextStyle Id="WixUI_Font_Normal" FaceName="Tahoma" Size="8" />
+      <TextStyle Id="WixUI_Font_Bigger" FaceName="Tahoma" Size="12" />
+      <TextStyle Id="WixUI_Font_Title" FaceName="Tahoma" Size="9" Bold="yes" />
+      <Property Id="DefaultUIFont" Value="WixUI_Font_Normal" />
+      <Property Id="WixUI_Mode" Value="Minimal" />
+
+      <DialogRef Id="ErrorDlg" />
+      <DialogRef Id="FatalError" />
+      <DialogRef Id="FilesInUse" />
+      <DialogRef Id="MsiRMFilesInUse" />
+      <DialogRef Id="PrepareDlg" />
+      <DialogRef Id="ProgressDlg" />
+      <DialogRef Id="ResumeDlg" />
+      <DialogRef Id="UserExit" />
+
+      <!-- The only dialog of a new installation: what it does and the one choice -->
+      <Dialog Id="SetupDlg" Width="370" Height="270" Title="[ProductName] Setup">
+        <Control Id="Bitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="234" TabSkip="no" Text="!(loc.WelcomeDlgBitmap)" />
+        <Control Id="Title" Type="Text" X="135" Y="20" Width="220" Height="40" Transparent="yes" NoPrefix="yes"
+                 Text="{\WixUI_Font_Bigger}Logitech G25/G27/DFGT Force Feedback Driver" />
+        <Control Id="Description" Type="Text" X="135" Y="65" Width="220" Height="70" Transparent="yes" NoPrefix="yes"
+                 Text="Force feedback, 900 degree rotation and separate pedals for the Logitech G25, G27 and Driving Force GT on Windows 10 and 11, with Memory Integrity on. No kernel driver: the wheel keeps the standard Windows HID driver. Settings are in the Game Controllers panel (joy.cpl), on the wheel's Force Feedback tab." />
+        <Control Id="RemoveOld" Type="CheckBox" X="135" Y="145" Width="220" Height="30" Property="REMOVELOGITECHDRIVER" CheckBoxValue="1"
+                 Hidden="yes" ShowCondition="LOGITECHDRIVERFOUND"
+                 Text="Remove the original Logitech wheel driver. It is installed, and Memory Integrity blocks it." />
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+        <Control Id="Install" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" ElevationShield="yes" Text="&amp;Install">
+          <Publish Event="EndDialog" Value="Return" />
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="!(loc.WixUICancel)">
+          <Publish Event="SpawnDialog" Value="CancelDlg" />
+        </Control>
+      </Dialog>
+
+      <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999" />
+      <Publish Dialog="MaintenanceWelcomeDlg" Control="Next" Event="NewDialog" Value="MaintenanceTypeDlg" />
+      <Publish Dialog="MaintenanceTypeDlg" Control="RepairButton" Event="NewDialog" Value="VerifyReadyDlg" />
+      <Publish Dialog="MaintenanceTypeDlg" Control="RemoveButton" Event="NewDialog" Value="VerifyReadyDlg" />
+      <Publish Dialog="MaintenanceTypeDlg" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg" />
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" />
+
+      <InstallUISequence>
+        <Show Dialog="SetupDlg" Before="ProgressDlg" Condition="NOT Installed" />
+      </InstallUISequence>
+    </UI>
+    <UIRef Id="WixUI_Common" />
+  </Package>
+</Wix>

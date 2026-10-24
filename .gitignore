@@ -1,0 +1,14 @@
+bin/
+obj/
+*.obj
+*.exe
+*.lib
+*.exp
+*.pdb
+dist/
+.wix/
+# test outputs
+tools/capture-inputs.txt
+tools/remove-wingman.log
+tools/fftest/suite-results.txt
+tools/remove-wingman.ps1

@@ -1,0 +1,16 @@
+LIBRARY G25FF
+EXPORTS
+    DllGetClassObject    PRIVATE
+    DllCanUnloadNow      PRIVATE
+    DllRegisterServer    PRIVATE
+    DllUnregisterServer  PRIVATE
+    DllInstall           PRIVATE
+    AgentW
+    StartAgentW
+    SwitchModeW
+    MsiDetectLogitechDriver
+    MsiStopAgents
+    MsiRegisterMachine
+    MsiUnregisterMachine
+    MsiRegisterUser
+    MsiUnregisterUser

@@ -3,7 +3,6 @@
 #include "proppage.h"
 #include "registration.h"
 #include "settings.h"
-#include "agent.h"
 #include "log.h"
 
 #pragma comment(lib, "dxguid.lib")
@@ -125,19 +124,13 @@ STDAPI DllInstall(BOOL install, LPCWSTR cmdLine)
     return SUCCEEDED(hr) ? RegisterDevices(HKEY_CURRENT_USER) : hr;
 }
 
-// rundll32 G25FF.dll,Agent  runs the agent (see agent.h) until the user logs off
-extern "C" void CALLBACK AgentW(HWND, HINSTANCE, LPWSTR, int)
-{
-    RunAgent();
-}
-
-// rundll32 G25FF.dll,StartAgent  starts the agent in the background, unless it runs already
+// rundll32 G25FF.dll,StartAgent  starts the agent (G25FFAgent.exe) unless it runs already
 extern "C" void CALLBACK StartAgentW(HWND, HINSTANCE, LPWSTR, int)
 {
     StartAgent();
 }
 
-// rundll32 G25FF.dll,SwitchMode  switches connected G25s to native mode and applies the saved settings once
+// rundll32 G25FF.dll,SwitchMode  switches connected wheels to native mode and applies the saved settings once
 extern "C" void CALLBACK SwitchModeW(HWND, HINSTANCE, LPWSTR, int)
 {
     if (SwitchWheelsToNative())

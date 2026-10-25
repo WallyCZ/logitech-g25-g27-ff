@@ -16,7 +16,11 @@ namespace {
 
 constexpr wchar_t OemKey[] = L"System\\CurrentControlSet\\Control\\MediaProperties\\PrivateProperties\\Joystick\\OEM\\";
 constexpr wchar_t RunKey[] = L"Software\\Microsoft\\Windows\\CurrentVersion\\Run";
-constexpr wchar_t RunValue[] = L"G25FF";
+constexpr wchar_t RunValue[] = L"G25FFAgent";
+// Version 1.0.0 started the agent with rundll32 under this name. Windows keeps a startup entry's enabled or
+// disabled state (Task Manager > Startup apps) under its name in StartupApproved\Run.
+constexpr wchar_t OldRunValue[] = L"G25FF";
+constexpr wchar_t StartupApprovedKey[] = L"Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\StartupApproved\\Run";
 
 // DirectInput DIEFFECTATTRIBUTES as stored in the registry. dwEffectId is what DirectInput passes back to
 // DownloadEffect.
@@ -111,6 +115,13 @@ LSTATUS RegisterComClass(HKEY root, REGSAM view, const ComClass& c, const wchar_
     SetString(k, L"ThreadingModel", L"Both");
     RegCloseKey(k);
     return ERROR_SUCCESS;
+}
+
+// G25FFAgent.exe next to this DLL
+std::wstring AgentPath()
+{
+    std::wstring p = ModulePath();
+    return p.substr(0, p.find_last_of(L'\\') + 1) + L"G25FFAgent.exe";
 }
 
 // The 32-bit build installed next to this 64-bit one, or empty
@@ -275,13 +286,15 @@ void UnregisterDevices(HKEY root)
 
 void RegisterAgent()
 {
-    std::wstring command = L"rundll32.exe \"" + ModulePath() + L"\",Agent";
+    std::wstring command = L"\"" + AgentPath() + L"\"";
     HKEY key;
     if (RegCreateKeyExW(HKEY_LOCAL_MACHINE, RunKey, 0, nullptr, 0, KEY_SET_VALUE | KEY_WOW64_64KEY, nullptr, &key,
                         nullptr) == ERROR_SUCCESS) {
         SetString(key, RunValue, command.c_str());
+        RegDeleteValueW(key, OldRunValue);
         RegCloseKey(key);
     }
+    RegDeleteKeyValueW(HKEY_LOCAL_MACHINE, StartupApprovedKey, OldRunValue);
 }
 
 void UnregisterAgent()
@@ -289,8 +302,11 @@ void UnregisterAgent()
     HKEY key;
     if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, RunKey, 0, KEY_SET_VALUE | KEY_WOW64_64KEY, &key) == ERROR_SUCCESS) {
         RegDeleteValueW(key, RunValue);
+        RegDeleteValueW(key, OldRunValue);
         RegCloseKey(key);
     }
+    for (const wchar_t* name : { RunValue, OldRunValue })
+        RegDeleteKeyValueW(HKEY_LOCAL_MACHINE, StartupApprovedKey, name);
 }
 
 void StartAgent()
@@ -299,10 +315,8 @@ void StartAgent()
         CloseHandle(running);
         return;
     }
-    wchar_t system[MAX_PATH];
-    GetSystemDirectoryW(system, MAX_PATH);
-    std::wstring exe = std::wstring(system) + L"\\rundll32.exe";
-    std::wstring command = L"\"" + exe + L"\" \"" + ModulePath() + L"\",Agent";
+    std::wstring exe = AgentPath();
+    std::wstring command = L"\"" + exe + L"\"";
     STARTUPINFOW si = { sizeof(si) };
     PROCESS_INFORMATION pi;
     if (CreateProcessW(exe.c_str(), command.data(), nullptr, nullptr, FALSE, 0, nullptr, nullptr, &si, &pi)) {
@@ -310,10 +324,9 @@ void StartAgent()
         CloseHandle(pi.hProcess);
         Log("agent started");
     } else {
-        Log("cannot start the agent (%lu)", GetLastError());
+        Log("cannot start the agent %ls (%lu)", exe.c_str(), GetLastError());
     }
 }
-
 void StopAgents()
 {
     if (HANDLE exit = OpenEventW(EVENT_MODIFY_STATE, FALSE, AgentExitEventName)) {

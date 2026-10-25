@@ -5,7 +5,6 @@ EXPORTS
     DllRegisterServer    PRIVATE
     DllUnregisterServer  PRIVATE
     DllInstall           PRIVATE
-    AgentW
     StartAgentW
     SwitchModeW
     MsiDetectLogitechDriver

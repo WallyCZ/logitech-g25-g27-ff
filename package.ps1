@@ -1,6 +1,6 @@
 # Builds the driver and creates the release files in dist\:
 #   G25FF-<version>.msi  installer (WiX 5, pinned in dotnet-tools.json)
-#   G25FF-<version>.zip  Install.ps1, README.md, x64\G25FF.dll, x86\G25FF.dll
+#   G25FF-<version>.zip  Install.ps1, README.md, x64\G25FF.dll, x64\G25FFAgent.exe, x86\G25FF.dll
 param(
     [Parameter(Mandatory = $true)][string]$Version
 )
@@ -27,6 +27,7 @@ foreach ($arch in "x64", "x86") {
     New-Item -ItemType Directory -Force (Join-Path $stage $arch) | Out-Null
     Copy-Item "bin\$arch\G25FF.dll" (Join-Path $stage $arch)
 }
+Copy-Item "bin\x64\G25FFAgent.exe" (Join-Path $stage "x64")
 Copy-Item Install.ps1, README.md $stage
 $zip = Join-Path $PSScriptRoot "dist\G25FF-$Version.zip"
 Compress-Archive -Path "$stage\*" -DestinationPath $zip -Force

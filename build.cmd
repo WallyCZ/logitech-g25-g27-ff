@@ -1,5 +1,6 @@
 @echo off
-rem Builds bin\x64\G25FF.dll and bin\x86\G25FF.dll with the newest installed Visual Studio (C++ workload)
+rem Builds bin\<arch>\G25FF.dll and bin\<arch>\G25FFAgent.exe for x64 and x86 with the newest installed
+rem Visual Studio (C++ workload)
 setlocal
 set PATH=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer;%PATH%
 set VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe
@@ -31,4 +32,9 @@ for /f "tokens=1-4 delims=." %%a in ("%VERSION%.0.0.0") do (
 )
 rc /nologo /i "%OBJ%" /fo"%OBJ%\G25FF.res" "%~dp0src\G25FF.rc" || exit /b 1
 link /nologo /DLL /DEF:"%~dp0src\G25FF.def" /OUT:"%OUT%\G25FF.dll" "%OBJ%\*.obj" "%OBJ%\G25FF.res" hid.lib setupapi.lib dinput8.lib dxguid.lib cfgmgr32.lib newdev.lib msi.lib ole32.lib advapi32.lib user32.lib || exit /b 1
+rem The agent program, G25FFAgent.exe: the agent code from the DLL build with its own entry point
+if not exist "%OBJ%\agentexe" mkdir "%OBJ%\agentexe"
+cl /nologo /utf-8 /c /O2 /MT /W4 /EHsc /std:c++17 /DUNICODE /D_UNICODE /DNOMINMAX /Fo"%OBJ%\agentexe\\" "%~dp0src\agentexe\main.cpp" || exit /b 1
+rc /nologo /i "%OBJ%" /fo"%OBJ%\agentexe\G25FFAgent.res" "%~dp0src\agentexe\G25FFAgent.rc" || exit /b 1
+link /nologo /SUBSYSTEM:WINDOWS /OUT:"%OUT%\G25FFAgent.exe" "%OBJ%\agentexe\main.obj" "%OBJ%\agent.obj" "%OBJ%\settings.obj" "%OBJ%\wheel.obj" "%OBJ%\log.obj" "%OBJ%\agentexe\G25FFAgent.res" hid.lib setupapi.lib advapi32.lib user32.lib || exit /b 1
 exit /b 0

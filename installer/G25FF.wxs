@@ -21,6 +21,9 @@
           <Component Id="DriverX64" Bitness="always64">
             <File Id="G25FF64" Source="$(BinDir)\x64\G25FF.dll" KeyPath="yes" />
           </Component>
+          <Component Id="AgentX64" Bitness="always64">
+            <File Id="G25FFAgent" Source="$(BinDir)\x64\G25FFAgent.exe" KeyPath="yes" />
+          </Component>
         </Directory>
         <Directory Id="X86FOLDER" Name="x86">
           <Component Id="DriverX86" Bitness="always32">
@@ -32,6 +35,7 @@
 
     <Feature Id="Driver">
       <ComponentRef Id="DriverX64" />
+      <ComponentRef Id="AgentX64" />
       <ComponentRef Id="DriverX86" />
     </Feature>
 

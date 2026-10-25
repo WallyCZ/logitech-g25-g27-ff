@@ -25,7 +25,6 @@ Write-Host "Logitech G25/G27/DFGT force feedback driver for Windows 10/11 (https
 $installDir = Join-Path $env:ProgramFiles "G25FF"
 $regsvr64 = Join-Path $env:SystemRoot "System32\regsvr32.exe"
 $regsvr32 = Join-Path $env:SystemRoot "SysWOW64\regsvr32.exe"
-$rundll32 = Join-Path $env:SystemRoot "System32\rundll32.exe"
 
 function Find-Dll($arch) {
     foreach ($path in "$PSScriptRoot\$arch\G25FF.dll", "$PSScriptRoot\bin\$arch\G25FF.dll") {
@@ -41,8 +40,9 @@ function Register-Dll($regsvr, $dll, [switch]$Unregister) {
     return $process.ExitCode -eq 0
 }
 
-# The agent (rundll32 G25FF.dll,Agent) keeps the installed DLL loaded
+# The agent (G25FFAgent.exe; version 1.0.0: rundll32 G25FF.dll,Agent) keeps the installed files in use
 function Stop-Agent {
+    Get-Process G25FFAgent -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
     Get-CimInstance Win32_Process -Filter "Name = 'rundll32.exe'" | Where-Object { $_.CommandLine -like "*G25FF.dll*Agent*" } |
         ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 }
@@ -85,8 +85,9 @@ if ($Uninstall) {
 
 $dll64 = Find-Dll "x64"
 $dll32 = Find-Dll "x86"
-if (-not $dll64 -or -not $dll32) {
-    Write-Host "G25FF.dll not found next to this script (x64 and x86 folders). Download a release or run build.cmd first." -ForegroundColor Red
+$agent = if ($dll64) { Join-Path (Split-Path $dll64) "G25FFAgent.exe" }
+if (-not $dll64 -or -not $dll32 -or -not (Test-Path $agent)) {
+    Write-Host "G25FF.dll and G25FFAgent.exe not found next to this script (x64 and x86 folders). Download a release or run build.cmd first." -ForegroundColor Red
     exit
 }
 
@@ -102,6 +103,7 @@ try {
         New-Item -ItemType Directory -Force (Join-Path $installDir $arch) | Out-Null
     }
     Copy-Item $dll64 (Join-Path $installDir "x64\G25FF.dll") -Force -ErrorAction Stop
+    Copy-Item $agent (Join-Path $installDir "x64\G25FFAgent.exe") -Force -ErrorAction Stop
     Copy-Item $dll32 (Join-Path $installDir "x86\G25FF.dll") -Force -ErrorAction Stop
 }
 catch {
@@ -115,7 +117,7 @@ if (-not (Register-Dll $regsvr64 (Join-Path $installDir "x64\G25FF.dll")) -or -n
 }
 Write-Host "Driver installed to $installDir" -ForegroundColor Green
 
-# The agent switches the wheel to native mode whenever it is plugged in; it starts at logon, start it now too
-# (no -Wait: Start-Process would wait for the agent too, which keeps running)
-Start-Process $rundll32 -ArgumentList "`"$(Join-Path $installDir 'x64\G25FF.dll')`",StartAgent"
+# The agent switches the wheel to native mode whenever it is plugged in; it starts at logon, start it now too.
+# Through Explorer, so it runs as the user and not elevated like this script.
+Start-Process (Join-Path $env:SystemRoot "explorer.exe") -ArgumentList "`"$(Join-Path $installDir 'x64\G25FFAgent.exe')`""
 Write-Host "Done. Test force feedback in the Game Controllers panel (joy.cpl), on the wheel's Force Feedback tab, or in a game."

@@ -16,7 +16,7 @@ void UnregisterClasses(HKEY root);
 HRESULT RegisterDevices(HKEY root);
 void UnregisterDevices(HKEY root);
 
-// The agent: rundll32 G25FF.dll,Agent at logon (HKLM Run key), which switches the wheels to native mode
+// The agent: G25FFAgent.exe (next to the DLL) at logon (HKLM Run key), which switches the wheels to native mode
 void RegisterAgent();
 void UnregisterAgent();
 void StartAgent();  // in the current session, unless it runs already

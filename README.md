@@ -48,8 +48,9 @@ Only the steering axis has force feedback.
 The wheels start in a compatibility mode (they act as a Driving Force EX: 200 degrees, combined pedals, no shifter,
 USB product id C294) and switch to their native mode (G25 C299, G27 C29B, Driving Force GT C29A) when they receive
 a command. In compatibility mode the USB device revision tells the models apart (`src/devices.h`). The original
-driver sent that command from its kernel filter; here the **agent** does it: `rundll32 G25FF.dll,Agent`, started
-at logon, switches the wheel whenever it is plugged in and applies the rotation range and centering settings.
+driver sent that command from its kernel filter; here the **agent** does it: `G25FFAgent.exe`, started at logon
+(Task Manager > Startup apps: "Logitech wheel force feedback agent (G25FF)"), switches the wheel whenever it is
+plugged in and applies the rotation range and centering settings.
 
 The wheel speaks Logitech's "classic" force feedback protocol: four force slots, each holding a constant force, a
 spring, a damper or a friction effect, but no effect timing. The **DirectInput effect driver** (`G25FF.dll`,
@@ -65,16 +66,17 @@ force feedback actuator (`Axes\0` in the DirectInput OEM key); without it Direct
 - `src/wheel.*` - the wheels' protocol commands and HID access
 - `src/ffdevice.*` - the effect engine: effect timing and the mapping of DirectInput effects to the four slots
 - `src/effectdriver.*` - the `IDirectInputEffectDriver` COM object DirectInput loads for the wheel
-- `src/agent.*` - the agent: native mode switch and wheel settings when the wheel is plugged in
+- `src/agent.*`, `src/agentexe` - the agent (`G25FFAgent.exe`): native mode switch and wheel settings when the wheel
+  is plugged in
 - `src/proppage.*`, `src/settings.*` - the Force Feedback tab in the Game Controllers panel and its settings
 - `src/registration.*`, `src/dllmain.cpp`, `src/msi.cpp` - COM, DirectInput and agent registration (used by
   `regsvr32` and by the MSI custom actions) and removal of the original Logitech driver
 - `installer/G25FF.wxs` - the MSI installer
 
 ## Building
-Run `build.cmd` (needs Visual Studio with the C++ workload). It produces `bin\x64\G25FF.dll` and
-`bin\x86\G25FF.dll`; `Install.ps1` in the repository root finds them there. `package.ps1 -Version x.y.z` creates the
-MSI (WiX 5, installed by `dotnet tool restore`) and the zip in `dist\`.
+Run `build.cmd` (needs Visual Studio with the C++ workload). It produces `bin\x64\G25FF.dll`,
+`bin\x64\G25FFAgent.exe` and `bin\x86\G25FF.dll`; `Install.ps1` in the repository root finds them there.
+`package.ps1 -Version x.y.z` creates the MSI (WiX 5, installed by `dotnet tool restore`) and the zip in `dist\`.
 
 GitHub Actions builds both on every push. Pushing a tag `vX.Y.Z` publishes a release with them; running the Build
 workflow manually creates a draft release for testing.
@@ -89,8 +91,8 @@ Tools for testing (build each with the `build.cmd` next to it):
 
 ## Troubleshooting
 If the wheel turns only about 200 degrees and the pedals are combined, it is still in compatibility mode: check
-that the agent runs (`rundll32.exe` with `G25FF.dll,Agent` in Task Manager's details), or switch it once with
-`rundll32 "C:\Program Files\G25FF\x64\G25FF.dll",SwitchMode`.
+that the agent runs (`G25FFAgent.exe` in Task Manager's details) and that it is enabled in Task Manager > Startup
+apps, or switch the wheel once with `rundll32 "C:\Program Files\G25FF\x64\G25FF.dll",SwitchMode`.
 
 Set `HKCU\Software\G25FF` `Debug` (DWORD) to `1` and the driver logs to `%TEMP%\G25FF.log` and to the debugger
 output (DebugView). Please attach the log when reporting a problem.
